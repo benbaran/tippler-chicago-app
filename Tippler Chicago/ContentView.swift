@@ -37,20 +37,56 @@ struct LeaderRow: View{
     
 struct LeaderView: View{
     
+    @State private var results = [Total]()
+    
     var body: some View {
         
-        VStack(){
-                
-            LeaderRow(name: "Lemming's", amount: 5000)
-                
-            LeaderRow(name: "Green Eye", amount: 5200)
-                
-            LeaderRow(name: "Map Room", amount: 50)
-                
-            LeaderRow(name: "Lottie's", amount: 4500)
+        List(results, id: \.id) { item in
             
-            LeaderRow(name: "Bucktown Pub", amount: 500)
+            LeaderRow(name: item.name, amount: item.amount / 100)
         }
+        .onAppear {
+            
+            self.loadData()
+        }
+        
+    }
+    
+    func loadData(){
+        
+    guard let url = URL(string: "https://tippler-chicago-api.azurewebsites.net/tip") else {
+        print("Invalid URL")
+        return
+    }
+    
+    let request = URLRequest(url: url)
+    
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            
+            let status = (response as! HTTPURLResponse).statusCode
+            
+            print("Response status was: \(status)")
+            
+            if let data = data {
+                
+                print("Got data.")
+                
+                if let decodedResponse = try? JSONDecoder().decode(Totals.self, from: data) {
+                    // we have good data – go back to the main thread
+                    DispatchQueue.main.async {
+                        // update our UI
+                        self.results = decodedResponse.totals
+                    }
+
+                    // everything is good, so we can exit
+                    return
+                }
+            }
+
+            // if we're still here it means there was a problem
+            print("Fetch failed: \(error?.localizedDescription ?? "Unknown error")")
+            
+        }.resume()
     }
 }
 
@@ -90,19 +126,42 @@ struct TipView: View{
     }
 }
 
+
+//{"totals":[{"id":1,"name":"Lemming's","amount":5200},{"id":2,"name":"Green Eye","amount":200}]}
+
+struct Totals: Codable {
+    var totals: [Total]
+}
+struct Total: Codable {
+    var id: Int
+    var name: String
+    var amount: Int
+}
+
 struct ContentView: View {
+    
     var body: some View {
         VStack(){
             
-            ImageView()
+            Text("Tippler")
+                .padding()
+                .font(.largeTitle)
+                .foregroundColor(Color.white)
+                .frame(maxWidth: .infinity)
+                .background(Color.green)
+                
+                
+            
+            //ImageView()
             
             LeaderView()
             
             Spacer()
             
             TipView()
-            
         }
+        
+        
     }
 }
 
